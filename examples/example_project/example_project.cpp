@@ -7,6 +7,8 @@
 #include <iostream>
 using namespace std;
 using LibSerial::SerialPort ;
+SerialPort serial_port ;
+char write_byte_1 = '1'; // send to connected Arduino
 
 ///////////////////////////////////////////////////////////
 #include <stdio.h>
@@ -48,7 +50,6 @@ uint16_t len;
 uint8_t buf[BUFFER_LENGTH];
 int bytes_sent;
 
-//int sock =  socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);// main 함수 밖 함수 호출이 안된다.
 struct sockaddr_in gcAddr; 
 struct sockaddr_in locAddr;
 //struct sockaddr_in fromAddr;
@@ -128,7 +129,7 @@ int main(int argc, char* argv[])
 
     ////////////////////////////////////////////////////
     std::cout << "merging mavlink_udp.c" << std::endl;
-    SerialPort serial_port ;
+    
 
     // Open hardware serial ports using the Open() method.
     cout << "serial_portl.Open("<<"/dev/ttyACM0"<<")"<< endl;
@@ -139,20 +140,11 @@ int main(int argc, char* argv[])
     serial_port.SetBaudRate( BaudRate::BAUD_115200 ) ;
     cout << "BAUD_115200" << endl;
 
-    // Create a few variables with data we can send.
-    char write_byte_1 = '1';
+    
 
     for (;;) {
-		send_mavlink_data_to_qgc(sock); // only send hearbeat package
+		send_mavlink_data_to_qgc(sock); //only send hearbeat package
 		recv_mavlink_data_from_qgc(sock);
-        msg.msgid = 1;
-        if(msg.msgid){
-            for(int i=0; i <5 ; i++){
-                cout<<"Write to ARDUINO:" << i+1 << endl;
-                serial_port.WriteByte(write_byte_1) ;
-                sleep(3);
-            }   
-        }
 
 		sleep(1); // Sleep one second
     }
@@ -166,25 +158,32 @@ int main(int argc, char* argv[])
 void recv_mavlink_data_from_qgc(int sock){
 	//msg.msgid = 147;//MAVLINK_MSG_ID_BATTERY_STATUS;
 	memset(buf, 0, BUFFER_LENGTH);
-		recsize = recvfrom(sock, (void *)buf, BUFFER_LENGTH, 0, (struct sockaddr *)&gcAddr, &fromlen);
-		if (recsize > 0){
-			// Something received - print out all bytes and parse packet
-			
-			printf("Bytes Received: %d\nDatagram: ", (int)recsize);
-			for (i = 0; i < recsize; ++i)
+	recsize = recvfrom(sock, (void *)buf, BUFFER_LENGTH, 0, (struct sockaddr *)&gcAddr, &fromlen);
+	if (recsize > 0){// Something received - print out all bytes and parse packet
+		printf("Bytes Received: %d\nDatagram: ", (int)recsize);
+		for (i = 0; i < recsize; ++i)
+		{
+			temp = buf[i];
+			printf("%02x ", (unsigned char)temp);
+			if (mavlink_parse_char(MAVLINK_COMM_0, buf[i], &msg, &status))
 			{
-				temp = buf[i];
-				printf("%02x ", (unsigned char)temp);
-				if (mavlink_parse_char(MAVLINK_COMM_0, buf[i], &msg, &status))
-				{
-					// Packet received
-					
-					printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
-				}
+				
+        
+				printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
 			}
-			printf("\n");
 		}
-		memset(buf, 0, BUFFER_LENGTH);
+		printf("\n");
+		
+		if(msg.msgid==147){ //MAVLINK_MSG_ID_BATTERY_STATUS
+			std::cout << "msg.msgid==MAVLINK_MSG_ID_BATTERY_STATUS" << std::endl;
+            for(int i=0; i <2 ; i++){
+               	cout<<"Write to ARDUINO:" << i+1 << endl;
+               		serial_port.WriteByte(write_byte_1) ;
+               		sleep(3);
+			}
+		}
+	}
+	memset(buf, 0, BUFFER_LENGTH);
 }
 
 void send_mavlink_data_to_qgc(int sock){
@@ -195,8 +194,8 @@ void send_mavlink_data_to_qgc(int sock){
 	bytes_sent = sendto(sock, buf, len, 0, (struct sockaddr*)&gcAddr, sizeof(struct sockaddr_in));
 	printf("send heartbeat to QGC\n");
 	
-/*	send another data..
-	
+	//send another data..
+/*	
 	//베터리 상태 전송 // arccoma2022.10.04 
 	
 	if(0 == battery_remaining){
