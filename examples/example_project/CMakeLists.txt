@@ -28,3 +28,5 @@ pkg_check_modules(SERIAL libserial)
 add_executable(ExampleProject example_project.cpp)
 target_include_directories(ExampleProject PRIVATE ${SERIAL_INCLUDE_DIRS})
 target_link_libraries(ExampleProject PRIVATE ${SERIAL_LDFLAGS} ${CMAKE_THREAD_LIBS_INIT})
+
+include_directories("/home/arccoma/UAV/libserial/include/common")
