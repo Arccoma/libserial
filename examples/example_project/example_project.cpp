@@ -8,7 +8,15 @@
 using namespace std;
 using LibSerial::SerialPort ;
 SerialPort serial_port ;
-char write_byte_1 = '1'; // send to connected Arduino
+char LOW_BATTERY_WARNING 	= '1'; // send to connected Arduino
+char VEHICLE_RTL_ALARAM 	= '2';
+char RC_LOSS_ALARAM			= '3';
+
+#define _3CELL_WARNING_LEVEL	11100 // [mV]
+#define _4CELL_WARNING_LEVEL	14800 
+#define _6CELL_WARNING_LEVEL	22200 
+#define _12CELL_WARNING_LEVEL	44400 
+
 
 ///////////////////////////////////////////////////////////
 #include <stdio.h>
@@ -31,7 +39,6 @@ char write_byte_1 = '1'; // send to connected Arduino
 #include <arpa/inet.h>
 #include <stdbool.h> /* required for the definition of bool in C99 */
 #endif
-
 /* This assumes you have the mavlink headers on your include path
  or in the same folder as this source file */
 #include <mavlink.h>
@@ -142,7 +149,7 @@ int main(int argc, char* argv[])
 
     
 
-    for (int i=0; i<60;i++) {
+    for (int i=0; i<100;i++) {
 		cout << "[" << i+1 <<"]";
 		send_mavlink_data_to_qgc(sock); //only send hearbeat package
 		recv_mavlink_data_from_qgc(sock);
@@ -172,20 +179,40 @@ void recv_mavlink_data_from_qgc(int sock){
 			//printf("%02x ", (unsigned char)temp);
 			if (mavlink_parse_char(MAVLINK_COMM_0, buf[i], &msg, &status))
 			{
-				//printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
-				if(MAVLINK_MSG_ID_BATTERY_STATUS==msg.msgid){
-				//	printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
-    				mavlink_msg_battery_status_decode(&msg, &batteryStatus);
-					printf("battery remaining:%d\n",batteryStatus.battery_remaining);
-					if(50 > batteryStatus.battery_remaining ){
-						for(int i=0; i <2 ; i++){
-               				cout<<"Write to ARDUINO:" << i+1 << endl;
-               				serial_port.WriteByte(write_byte_1) ;
-               				sleep(3);
-					}	
-					}
-				}
 				
+				switch(msg.msgid){
+					case MAVLINK_MSG_ID_BATTERY_STATUS:
+					{
+						printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+    					mavlink_msg_battery_status_decode(&msg, &batteryStatus);
+						printf("battery voltage:%d[mV] (",batteryStatus.voltages[0]);
+						//printf("remaining:%d )\n",batteryStatus.battery_remaining);
+						cout << unsigned(batteryStatus.battery_remaining) << "% remaining)"<<endl;
+						//cout << "battery cell count:" <<sizeof(batteryStatus.voltages)/sizeof(batteryStatus.voltages[0]) << endl;
+						
+						/*
+						 3 cell- Full charge 12150 mV,  Warning level: 11100 mV
+						 4 cell- Full charge 16200 mV,  Warning level: 14800 mV
+						 6 cell- Full charge 24300 mV,  Warning level: 22200 mV
+						12 cell- Full charge 48600 mV,  Warning level: 44400 mV
+						*/
+						//if(50 > batteryStatus.battery_remaining ){
+						if(_3CELL_WARNING_LEVEL > unsigned(batteryStatus.voltages[0]) ){ 
+               				cout<<"Write '1' to ARDUINO:Turn on Battery Warning Lamp" << endl;
+               				serial_port.WriteByte(LOW_BATTERY_WARNING) ;	
+						}
+						
+						break;
+					}
+					case MAVLINK_MSG_ID_SYSTEM_TIME:
+						printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+						cout << "MAVLINK_MSG_ID_SYSTEM_TIME" << endl;
+						cout << "Write '2' to ARDUINO:"<< endl;
+						serial_port.WriteByte(VEHICLE_RTL_ALARAM) ;
+						break;
+					default:
+						break;
+				}		
 			}
 		}
 		printf("\n");
