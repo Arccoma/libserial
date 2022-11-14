@@ -9,7 +9,7 @@
 
 //#define SERIAL_PRINT_DEBUG // 아두이노의 시리얼 모니터 디버깅시 주석 해제
 
-#define PLAY_TIME 3000 // LED On Time
+#define PLAY_TIME 2000 // LED On Time
 int incomingByte = 0;
 const int BATTERY_LOW_LED = 6; // relay2: RED
 const int RTL_ALARM_LED =   5; // relay3: GREEN
@@ -120,7 +120,7 @@ void alramRTL(){
   }
   cntRTL++;
 
-  if (PLAY_TIME < cntRTL)// 일정 시간 동작 후 정지.
+  if (10000 < cntRTL)// 일정 시간 동작 후 정지.
   {
     digitalWrite(RTL_ALARM_LED, LOW);
     cntRTL = 0;

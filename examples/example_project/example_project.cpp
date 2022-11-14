@@ -140,7 +140,8 @@ int main(int argc, char* argv[])
 
     // Open hardware serial ports using the Open() method.
     cout << "serial_portl.Open("<<"/dev/ttyACM0"<<")"<< endl;
-    serial_port.Open( "/dev/ttyACM0" ) ; //connected ARDUINO 
+//    serial_port.Open( "/dev/ttyACM0" ) ; //connected ARDUINO MEGA
+	serial_port.Open( "/dev/ttyUSB0" ) ; //connected ARDUINO UNO
 
     // Set the baud rates.
     using LibSerial::BaudRate ;
@@ -149,7 +150,7 @@ int main(int argc, char* argv[])
 
     
 
-    for (int i=0; i<100;i++) {
+    for (int i=0; i<300;i++) {
 		cout << "[" << i+1 <<"]";
 		send_mavlink_data_to_qgc(sock); //only send hearbeat package
 		recv_mavlink_data_from_qgc(sock);
