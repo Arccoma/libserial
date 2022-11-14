@@ -4,16 +4,16 @@
   '1':  QGC-> Arduino  :  Arduino recive message from QGC that Battery Warnig.Turn ON RED LED.
   '2':  QGC-> Arduino  :  Arduino recive message from QGC that RTL event.Turn ON GREEN LED.
   '3':  QGC-> Arduino  :  Arduino recive message from QGC that RC LOSS.Turn ON YELLOW LED.
-  4채널(4~7핀) 릴레이 쉴드 사용하여 LED제어. (4번 출력은 사용하지 않음) 
+  4채널(4~7핀) 릴레이 쉴드 사용하여 LED제어. (7번핀 릴레이1은 사용하지 않음) 
 *****************************************************************************************/
 
 //#define SERIAL_PRINT_DEBUG // 아두이노의 시리얼 모니터 디버깅시 주석 해제
 
 #define PLAY_TIME 3000 // LED On Time
 int incomingByte = 0;
-const int BATTERY_LOW_LED = 5; //RED
-const int RTL_ALARM_LED =   6; //GREEN
-const int RC_LOSS_LED =     7; //YELLOW
+const int BATTERY_LOW_LED = 6; // relay2: RED
+const int RTL_ALARM_LED =   5; // relay3: GREEN
+const int RC_LOSS_LED =     4; // realy4: YELLOW
 
 int flgLowBattry = 0;
 int flgRTL        = 0;
