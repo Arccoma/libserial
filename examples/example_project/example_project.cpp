@@ -8,7 +8,11 @@
 using namespace std;
 using LibSerial::SerialPort ;
 SerialPort serial_port ;
-char LOW_BATTERY_WARNING 	= '1'; // send to connected Arduino
+
+// communication protocol
+// byte send to connected Arduino
+char FULL_BATTERY			= '0';
+char LOW_BATTERY_WARNING 	= '1'; 
 char VEHICLE_RTL_ALARAM 	= '2';
 char RC_LOSS_ALARAM			= '3';
 
@@ -197,7 +201,10 @@ void recv_mavlink_data_from_qgc(int sock){
 						 6 cell- Full charge 24300 mV,  Warning level: 22200 mV
 						12 cell- Full charge 48600 mV,  Warning level: 44400 mV
 						*/
-						//if(50 > batteryStatus.battery_remaining ){
+						if(100 == batteryStatus.battery_remaining ){
+							cout<<"Write '0' to ARDUINO:Turn off all Warning Lamp" << endl;
+               				serial_port.WriteByte(FULL_BATTERY) ;
+						}
 						if(_3CELL_WARNING_LEVEL > unsigned(batteryStatus.voltages[0]) ){ 
                				cout<<"Write '1' to ARDUINO:Turn on Battery Warning Lamp" << endl;
                				serial_port.WriteByte(LOW_BATTERY_WARNING) ;	
@@ -205,12 +212,20 @@ void recv_mavlink_data_from_qgc(int sock){
 						
 						break;
 					}
-					case MAVLINK_MSG_ID_SYSTEM_TIME:
-						printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+					case MAVLINK_MSG_ID_SYSTEM_TIME: // RTL message
+						//temporary expedient. Replace it later with a custom message
+						
+						//printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
 						cout << "MAVLINK_MSG_ID_SYSTEM_TIME" << endl;
 						cout << "Write '2' to ARDUINO:"<< endl;
 						serial_port.WriteByte(VEHICLE_RTL_ALARAM) ;
 						break;
+/*
+					case RC Loss:
+						cout << "Write '3' to ARDUINO:Turn on RC Loss Warning Lamp"<< endl;
+						serial_port.WriteByte(RC_LOSS_ALARAM) ;
+						break;
+*/
 					default:
 						break;
 				}		
