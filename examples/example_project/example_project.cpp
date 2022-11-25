@@ -51,9 +51,6 @@ char RC_LOSS_ALARAM			= '3';
 
 //////////////////////////////////// Variables  //////////////////////////////
 
-float position[6] = {10,20,30,100,150,10};//x,y,z,vx,vy,vz
-const uint16_t voltages[]={10,11,12,13,14,15,16,17,18,19};// arccoma2022.10.04
-int battery_remaining = 100;
 
 mavlink_message_t msg;
 mavlink_status_t status;
@@ -68,6 +65,7 @@ ssize_t recsize;
 socklen_t fromlen = sizeof(gcAddr);
 
 int i = 0;
+unsigned int cntRcv = 0;
 //int success = 0;
 unsigned int temp = 0;
 
@@ -143,9 +141,9 @@ int main(int argc, char* argv[])
     
 
     // Open hardware serial ports using the Open() method.
-    cout << "serial_portl.Open("<<"/dev/ttyACM0"<<")"<< endl;
+    cout << "serial_portl.Open("<<"/dev/ttyACM0 or ttyUSB0 or 1"<<")"<< endl;
 //    serial_port.Open( "/dev/ttyACM0" ) ; //connected ARDUINO MEGA
-	serial_port.Open( "/dev/ttyUSB0" ) ; //connected ARDUINO UNO
+	serial_port.Open( "/dev/ttyUSB0" ) ; //conneted ARDUINO UNO
 
     // Set the baud rates.
     using LibSerial::BaudRate ;
@@ -154,8 +152,7 @@ int main(int argc, char* argv[])
 
     
 
-    for (int i=0; i<300;i++) {
-		cout << "[" << i+1 <<"]";
+    for (;;) {
 		send_mavlink_data_to_qgc(sock); //only send hearbeat package
 		recv_mavlink_data_from_qgc(sock);
 
@@ -172,8 +169,10 @@ int main(int argc, char* argv[])
 
 
 void recv_mavlink_data_from_qgc(int sock){
-	//msg.msgid = 147;//MAVLINK_MSG_ID_BATTERY_STATUS;
+	
 	mavlink_battery_status_t batteryStatus;
+	mavlink_statustext_t statustext;
+
 	memset(buf, 0, BUFFER_LENGTH);
 	recsize = recvfrom(sock, (void *)buf, BUFFER_LENGTH, 0, (struct sockaddr *)&gcAddr, &fromlen);
 	if (recsize > 0){// Something received - print out all bytes and parse packet
@@ -184,51 +183,64 @@ void recv_mavlink_data_from_qgc(int sock){
 			//printf("%02x ", (unsigned char)temp);
 			if (mavlink_parse_char(MAVLINK_COMM_0, buf[i], &msg, &status))
 			{
-				
 				switch(msg.msgid){
-					case MAVLINK_MSG_ID_BATTERY_STATUS:
+				case MAVLINK_MSG_ID_BATTERY_STATUS:
+				{
+					cntRcv ++;
+					printf("[%d] ",cntRcv);
+					printf("Received packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+    				mavlink_msg_battery_status_decode(&msg, &batteryStatus);
+					printf("battery voltage:%d[mV] (",batteryStatus.voltages[0]);
+					cout << unsigned(batteryStatus.battery_remaining) << "% remaining)"<<endl;
+					//cout << "battery cell count:" <<sizeof(batteryStatus.voltages)/sizeof(batteryStatus.voltages[0]) << endl;
+						
+					if(100 == batteryStatus.battery_remaining )
 					{
-						printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
-    					mavlink_msg_battery_status_decode(&msg, &batteryStatus);
-						printf("battery voltage:%d[mV] (",batteryStatus.voltages[0]);
-						//printf("remaining:%d )\n",batteryStatus.battery_remaining);
-						cout << unsigned(batteryStatus.battery_remaining) << "% remaining)"<<endl;
-						//cout << "battery cell count:" <<sizeof(batteryStatus.voltages)/sizeof(batteryStatus.voltages[0]) << endl;
-						
-						/*
-						 3 cell- Full charge 12150 mV,  Warning level: 11100 mV
-						 4 cell- Full charge 16200 mV,  Warning level: 14800 mV
-						 6 cell- Full charge 24300 mV,  Warning level: 22200 mV
-						12 cell- Full charge 48600 mV,  Warning level: 44400 mV
-						*/
-						if(100 == batteryStatus.battery_remaining ){
-							cout<<"Write '0' to ARDUINO:Turn off all Warning Lamp" << endl;
-               				serial_port.WriteByte(FULL_BATTERY) ;
-						}
-						if(_3CELL_WARNING_LEVEL > unsigned(batteryStatus.voltages[0]) ){ 
-               				cout<<"Write '1' to ARDUINO:Turn on Battery Warning Lamp" << endl;
-               				serial_port.WriteByte(LOW_BATTERY_WARNING) ;	
-						}
-						
-						break;
+						cout<<"Write '0' to ARDUINO:Turn off all Warning Lamp" << endl;
+               			serial_port.WriteByte(FULL_BATTERY) ;
 					}
-					case MAVLINK_MSG_ID_SYSTEM_TIME: // RTL message
-						//temporary expedient. Replace it later with a custom message
+					if(_4CELL_WARNING_LEVEL > unsigned(batteryStatus.voltages[0]) ){ 
+               			cout<<"Write '1' to ARDUINO:Turn on Battery Warning Lamp" << endl;
+               			serial_port.WriteByte(LOW_BATTERY_WARNING) ;	
+					}
+					break;
+				}
+				case MAVLINK_MSG_ID_STATUSTEXT:
+				{
+					cntRcv ++;
+					printf("[%d] ",cntRcv);
+					printf("Received packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+					mavlink_msg_statustext_decode(&msg, &statustext);
+					printf("\n>>>>>>>> STATUSTEXT: %s <<<<<<<<<<<\n\n",statustext.text);  
 						
-						//printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
-						cout << "MAVLINK_MSG_ID_SYSTEM_TIME" << endl;
+					if(!strncmp("Takeoff detected",statustext.text,16))
+					{
+						cout << "== Takeoff == Takeoff == Takeoff == Takeoff == Takeoff =="<< endl;
+					}
+					if(!strncmp("RTL HOME activated",statustext.text,18))
+					{	
+						cout << "== RTL HOME == RTL HOME == RTL HOME == RTL HOME == RTL HOME =="<< endl;
 						cout << "Write '2' to ARDUINO:"<< endl;
 						serial_port.WriteByte(VEHICLE_RTL_ALARAM) ;
-						break;
-/*
-					case RC Loss:
-						cout << "Write '3' to ARDUINO:Turn on RC Loss Warning Lamp"<< endl;
+					}
+					if(!strncmp("Manual control lost",statustext.text,18))
+					{
+						cout << "== RC Loss == RC Loss == RC Loss == RC Loss == RC Loss =="<< endl;
+						cout << "Write '3' to ARDUINO:Turn on RC Loss Lamp"<< endl;
 						serial_port.WriteByte(RC_LOSS_ALARAM) ;
-						break;
-*/
-					default:
-						break;
-				}		
+					}
+					if(!strncmp("Disarmed by landing",statustext.text,20))
+					{
+						cout << "== Disarm == by Landing == Disarm == by Landing == Disarm =="<< endl;
+						cout<<"Write '0' to ARDUINO:Turn off all Warning Lamp" << endl;
+               			serial_port.WriteByte('0') ;
+					}
+					break;
+				}
+
+				default:
+					break;
+				}//switch(msg.msgid)
 			}
 		}
 		printf("\n");
