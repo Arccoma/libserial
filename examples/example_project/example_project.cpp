@@ -127,14 +127,10 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
     }
 	
-  	//I don't know What is qcAddr. 
 	memset(&gcAddr, 0, sizeof(gcAddr));
 	gcAddr.sin_family = AF_INET;
 	gcAddr.sin_addr.s_addr = inet_addr(target_ip);
 	gcAddr.sin_port = htons(14550);
-
-	//msg.msgid = MAVLINK_MSG_ID_BATTERY_STATUS;
-	//send_mavlink_data_to_qgc(sock);	
 
     ////////////////////////////////////////////////////
     std::cout << "merging mavlink_udp.c" << std::endl;
@@ -211,25 +207,25 @@ void recv_mavlink_data_from_qgc(int sock){
 					printf("[%d] ",cntRcv);
 					printf("Received packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
 					mavlink_msg_statustext_decode(&msg, &statustext);
-					printf("\n>>>>>>>> STATUSTEXT: %s <<<<<<<<<<<\n\n",statustext.text);  
+					printf("\n>>>>>>>> STATUSTEXT: %s <<<<<<<<<<<\n",statustext.text);  
 						
 					if(!strncmp("Takeoff detected",statustext.text,16))
 					{
 						cout << "== Takeoff == Takeoff == Takeoff == Takeoff == Takeoff =="<< endl;
 					}
-					if(!strncmp("RTL HOME activated",statustext.text,18))
+					if(!strncmp("RTL HOME activated",statustext.text,strlen("RTL HOME activated")))
 					{	
 						cout << "== RTL HOME == RTL HOME == RTL HOME == RTL HOME == RTL HOME =="<< endl;
 						cout << "Write '2' to ARDUINO:"<< endl;
 						serial_port.WriteByte(VEHICLE_RTL_ALARAM) ;
 					}
-					if(!strncmp("Manual control lost",statustext.text,18))
+					if(!strncmp("Manual control lost",statustext.text,strlen("Manual control lost")))
 					{
 						cout << "== RC Loss == RC Loss == RC Loss == RC Loss == RC Loss =="<< endl;
 						cout << "Write '3' to ARDUINO:Turn on RC Loss Lamp"<< endl;
 						serial_port.WriteByte(RC_LOSS_ALARAM) ;
 					}
-					if(!strncmp("Disarmed by landing",statustext.text,20))
+					if(!strncmp("Disarmed by landing",statustext.text,strlen("Disarmed by landing")))
 					{
 						cout << "== Disarm == by Landing == Disarm == by Landing == Disarm =="<< endl;
 						cout<<"Write '0' to ARDUINO:Turn off all Warning Lamp" << endl;
